@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <title>NOAA Weltraumwetter Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #121212;
+      color: #fff;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+
+    .dashboard {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      max-width: 1000px;
+      margin: auto;
+    }
+
+    .card {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 12px;
+      padding: 20px;
+      width: 100%;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+    }
+
+    .card h2 {
+      font-size: 1.3em;
+      margin: 0 0 10px;
+    }
+
+    .value {
+      font-size: 2.2em;
+      color: #ff9800;
+      margin-bottom: 8px;
+    }
+
+    .description {
+      color: #ccc;
+      font-size: 0.95em;
+      margin-bottom: 15px;
+    }
+
+    canvas {
+      background-color: #191919;
+      border-radius: 10px;
+      width: 100%;
+      height: 250px;
+    }
+
+    @media (max-width: 600px) {
+      .card {
+        padding: 15px;
+      }
+
+      .value {
+        font-size: 1.8em;
+      }
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <h1>NOAA Weltraumwetter Dashboard</h1>
+
+  <div class="dashboard">
+    <div class="card">
+      <h2>IMF total field (nT)</h2>
+      <div class="value" id="imfTotal">--</div>
+      <div class="description">Gesamtstärke des interplanetaren Magnetfelds</div>
+      <canvas id="chartIMF"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>IMF Z vector (nT)</h2>
+      <div class="value" id="imfZ">--</div>
+      <div class="description">Z-Komponente des interplanetaren Magnetfelds</div>
+      <canvas id="chartIMFz"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Proton speed (km/s)</h2>
+      <div class="value" id="protonSpeed">--</div>
+      <div class="description">Geschwindigkeit des Sonnenwinds</div>
+      <canvas id="chartSpeed"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Proton density (p/cm³)</h2>
+      <div class="value" id="protonDensity">--</div>
+      <div class="description">Anzahl der Protonen pro cm³</div>
+      <canvas id="chartDensity"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Proton temperature (K)</h2>
+      <div class="value" id="protonTemp">--</div>
+      <div class="description">Temperatur der Protonen im Sonnenwind</div>
+      <canvas id="chartTemp"></canvas>
+    </div>
+  </div>
+
+  <script>
+    const timeLabels = [];
+    const dataIMF = [];
+    const dataIMFz = [];
+    const dataSpeed = [];
+    const dataDensity = [];
+    const dataTemp = [];
+
+    async function fetchNOAAData() {
+      // Beispielhafte Dummy-Daten zum Testen
+      for (let i = 0; i < 24; i++) {
+        timeLabels.push(`:00`);
+        dataIMF.push(10 + Math.random() * 5);
+        dataIMFz.push(-5 + Math.random() * 10);
+        dataSpeed.push(400 + Math.random() * 200);
+        dataDensity.push(Math.random() * 10);
+        dataTemp.push(Math.random() * 500000);
+      }
+
+      // Live-Werte
+      document.getElementById('imfTotal').textContent = dataIMF.at(-1).toFixed(1);
+      document.getElementById('imfZ').textContent = dataIMFz.at(-1).toFixed(1);
+      document.getElementById('protonSpeed').textContent = dataSpeed.at(-1).toFixed(0);
+      document.getElementById('protonDensity').textContent = dataDensity.at(-1).toFixed(1);
+      document.getElementById('protonTemp').textContent = (dataTemp.at(-1)).toFixed(0) + ' K';
+
+      renderCharts();
+    }
+
+    function renderCharts() {
+      const config = (label, data, color) => ({
+        type: 'line',
+        data: {
+          labels: timeLabels,
+          datasets: [{
+            label: label,
+            data: data,
+            borderColor: color,
+            backgroundColor: 'transparent',
+            tension: 0.3,
+            pointRadius: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              ticks: { color: '#888', maxTicksLimit: 8 }
+            },
+            y: {
+              ticks: { color: '#888' }
+            }
+          }
+        }
+      });
+
+      new Chart(document.getElementById('chartIMF'), config('IMF total field', dataIMF, 'orange'));
+      new Chart(document.getElementById('chartIMFz'), config('IMF Z vector', dataIMFz, 'yellow'));
+      new Chart(document.getElementById('chartSpeed'), config('Proton speed', dataSpeed, 'red'));
+      new Chart(document.getElementById('chartDensity'), config('Proton density', dataDensity, 'lime'));
+      new Chart(document.getElementById('chartTemp'), config('Proton temperature', dataTemp, 'purple'));
+    }
+
+    fetchNOAAData();
+  </script>
+</body>
+</html>
