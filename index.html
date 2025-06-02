@@ -20,10 +20,11 @@
 
     .dashboard {
       display: flex;
-      flex-direction: column;
-      align-items: center;
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: flex-start; /* Geändert: linksbündig */
       gap: 20px;
-      max-width: 1000px;
+      max-width: 1200px;
       margin: auto;
     }
 
@@ -32,8 +33,16 @@
       border: 1px solid #333;
       border-radius: 12px;
       padding: 20px;
-      width: 100%;
+      width: calc(33.333% - 20px);
+      min-width: 280px;
       box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+      box-sizing: border-box;
+      cursor: pointer; /* Zeigt an, dass die Karte anklickbar ist */
+      transition: transform 0.2s ease-in-out; /* Für einen kleinen Hover-Effekt */
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
     }
 
     .card h2 {
@@ -60,13 +69,110 @@
       height: 250px;
     }
 
+    /* Modal für die Großansicht */
+    .modal {
+      display: none; /* Standardmäßig versteckt */
+      position: fixed; /* Fixiert über dem Inhalt */
+      z-index: 1000; /* Ganz oben */
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      overflow: auto; /* Scrollbar, falls Inhalt zu groß */
+      background-color: rgba(0,0,0,0.7); /* Halbdurchsichtiger Hintergrund */
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-content {
+      background-color: #1e1e1e;
+      margin: auto;
+      padding: 20px;
+      border: 1px solid #333;
+      border-radius: 12px;
+      width: 80%; /* Breite des Modals */
+      max-width: 900px; /* Maximale Breite */
+      position: relative;
+      animation: fadeIn 0.3s;
+    }
+
+    @keyframes fadeIn {
+      from {opacity: 0;}
+      to {opacity: 1;}
+    }
+
+    .close-button {
+      color: #aaa;
+      float: right;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .close-button:hover,
+    .close-button:focus {
+      color: #fff;
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .modal-chart-container {
+        width: 100%;
+        height: 400px; /* Höhe des Graphen im Modal */
+        margin-top: 20px;
+    }
+
+    .time-selector {
+        margin-top: 15px;
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .time-selector button {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+
+    .time-selector button:hover {
+        background-color: #0056b3;
+    }
+
+    .time-selector button.active {
+        background-color: #28a745;
+    }
+
+    @media (max-width: 900px) {
+      .dashboard {
+        justify-content: center; /* Zentrierung für kleinere Bildschirme beibehalten, wenn es nur 2 Spalten gibt */
+      }
+      .card {
+        width: calc(50% - 20px);
+      }
+      .modal-content {
+          width: 90%;
+      }
+    }
+
     @media (max-width: 600px) {
       .card {
         padding: 15px;
+        width: 100%;
       }
-
       .value {
         font-size: 1.8em;
+      }
+      .time-selector {
+          flex-direction: column;
+      }
+      .modal-chart-container {
+          height: 300px;
       }
     }
   </style>
@@ -76,35 +182,35 @@
   <h1>NOAA Weltraumwetter Dashboard</h1>
 
   <div class="dashboard">
-    <div class="card">
+    <div class="card" data-chart="IMF">
       <h2>IMF total field (nT)</h2>
       <div class="value" id="imfTotal">--</div>
       <div class="description">Gesamtstärke des interplanetaren Magnetfelds</div>
       <canvas id="chartIMF"></canvas>
     </div>
 
-    <div class="card">
+    <div class="card" data-chart="IMFz">
       <h2>IMF Z vector (nT)</h2>
       <div class="value" id="imfZ">--</div>
       <div class="description">Z-Komponente des interplanetaren Magnetfelds</div>
       <canvas id="chartIMFz"></canvas>
     </div>
 
-    <div class="card">
+    <div class="card" data-chart="Speed">
       <h2>Proton speed (km/s)</h2>
       <div class="value" id="protonSpeed">--</div>
       <div class="description">Geschwindigkeit des Sonnenwinds</div>
       <canvas id="chartSpeed"></canvas>
     </div>
 
-    <div class="card">
+    <div class="card" data-chart="Density">
       <h2>Proton density (p/cm³)</h2>
       <div class="value" id="protonDensity">--</div>
       <div class="description">Anzahl der Protonen pro cm³</div>
       <canvas id="chartDensity"></canvas>
     </div>
 
-    <div class="card">
+    <div class="card" data-chart="Temp">
       <h2>Proton temperature (K)</h2>
       <div class="value" id="protonTemp">--</div>
       <div class="description">Temperatur der Protonen im Sonnenwind</div>
@@ -112,69 +218,236 @@
     </div>
   </div>
 
+  <div id="chartModal" class="modal">
+    <div class="modal-content">
+      <span class="close-button">&times;</span>
+      <h2 id="modalChartTitle"></h2>
+      <div class="modal-chart-container">
+        <canvas id="modalChart"></canvas>
+      </div>
+      <div class="time-selector">
+        <button data-period="24h" class="active">Letzte 24h</button>
+        <button data-period="48h">Letzte 48h</button>
+        <button data-period="72h">Letzte 72h</button>
+      </div>
+    </div>
+  </div>
+
   <script>
-    const timeLabels = [];
-    const dataIMF = [];
-    const dataIMFz = [];
-    const dataSpeed = [];
-    const dataDensity = [];
-    const dataTemp = [];
+    const allTimeLabels = [];
+    const allDataIMF = [];
+    const allDataIMFz = [];
+    const allDataSpeed = [];
+    const allDataDensity = [];
+    const allDataTemp = [];
+
+    let currentChartType = null; // Speichert den aktuell ausgewählten Graphentyp
+    let modalChartInstance = null; // Speichert die Chart.js Instanz des Modals
+
+    // Hilfsfunktion zur Generierung von Dummy-Daten
+    function generateDummyData(hours) {
+        const labels = [];
+        const imf = [];
+        const imfz = [];
+        const speed = [];
+        const density = [];
+        const temp = [];
+
+        for (let i = 0; i < hours; i++) {
+            const date = new Date();
+            date.setHours(date.getHours() - (hours - 1 - i)); // Geht rückwärts in der Zeit
+            labels.push(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+            imf.push(10 + Math.random() * 5);
+            imfz.push(-5 + Math.random() * 10);
+            speed.push(400 + Math.random() * 200);
+            density.push(Math.random() * 10);
+            temp.push(Math.random() * 500000);
+        }
+        return { labels, imf, imfz, speed, density, temp };
+    }
 
     async function fetchNOAAData() {
-      // Beispielhafte Dummy-Daten zum Testen
-      for (let i = 0; i < 24; i++) {
-        timeLabels.push(`:00`);
-        dataIMF.push(10 + Math.random() * 5);
-        dataIMFz.push(-5 + Math.random() * 10);
-        dataSpeed.push(400 + Math.random() * 200);
-        dataDensity.push(Math.random() * 10);
-        dataTemp.push(Math.random() * 500000);
-      }
+        // Generiere 72 Stunden Dummy-Daten
+        const dummyData = generateDummyData(72);
+        allTimeLabels.push(...dummyData.labels);
+        allDataIMF.push(...dummyData.imf);
+        allDataIMFz.push(...dummyData.imfz);
+        allDataSpeed.push(...dummyData.speed);
+        allDataDensity.push(...dummyData.density);
+        allDataTemp.push(...dummyData.temp);
 
-      // Live-Werte
-      document.getElementById('imfTotal').textContent = dataIMF.at(-1).toFixed(1);
-      document.getElementById('imfZ').textContent = dataIMFz.at(-1).toFixed(1);
-      document.getElementById('protonSpeed').textContent = dataSpeed.at(-1).toFixed(0);
-      document.getElementById('protonDensity').textContent = dataDensity.at(-1).toFixed(1);
-      document.getElementById('protonTemp').textContent = (dataTemp.at(-1)).toFixed(0) + ' K';
+        // Live-Werte (immer vom letzten verfügbaren Datenpunkt)
+        document.getElementById('imfTotal').textContent = allDataIMF.at(-1).toFixed(1);
+        document.getElementById('imfZ').textContent = allDataIMFz.at(-1).toFixed(1);
+        document.getElementById('protonSpeed').textContent = allDataSpeed.at(-1).toFixed(0);
+        document.getElementById('protonDensity').textContent = allDataDensity.at(-1).toFixed(1);
+        document.getElementById('protonTemp').textContent = (allDataTemp.at(-1)).toFixed(0) + ' K';
 
-      renderCharts();
+        renderSmallCharts();
     }
 
-    function renderCharts() {
-      const config = (label, data, color) => ({
-        type: 'line',
-        data: {
-          labels: timeLabels,
-          datasets: [{
-            label: label,
-            data: data,
-            borderColor: color,
-            backgroundColor: 'transparent',
-            tension: 0.3,
-            pointRadius: 0
-          }]
-        },
-        options: {
-          responsive: true,
-          plugins: { legend: { display: false } },
-          scales: {
-            x: {
-              ticks: { color: '#888', maxTicksLimit: 8 }
+    function renderSmallCharts() {
+        const config = (label, data, color) => ({
+            type: 'line',
+            data: {
+                // Zeigt nur die letzten 24 Stunden für die kleinen Graphen an
+                labels: allTimeLabels.slice(-24),
+                datasets: [{
+                    label: label,
+                    data: data.slice(-24),
+                    borderColor: color,
+                    backgroundColor: 'transparent',
+                    tension: 0.3,
+                    pointRadius: 0
+                }]
             },
-            y: {
-              ticks: { color: '#888' }
+            options: {
+                responsive: true,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: {
+                        ticks: { color: '#888', maxTicksLimit: 8 }
+                    },
+                    y: {
+                        ticks: { color: '#888' }
+                    }
+                }
             }
-          }
-        }
-      });
+        });
 
-      new Chart(document.getElementById('chartIMF'), config('IMF total field', dataIMF, 'orange'));
-      new Chart(document.getElementById('chartIMFz'), config('IMF Z vector', dataIMFz, 'yellow'));
-      new Chart(document.getElementById('chartSpeed'), config('Proton speed', dataSpeed, 'red'));
-      new Chart(document.getElementById('chartDensity'), config('Proton density', dataDensity, 'lime'));
-      new Chart(document.getElementById('chartTemp'), config('Proton temperature', dataTemp, 'purple'));
+        new Chart(document.getElementById('chartIMF'), config('IMF total field', allDataIMF, 'orange'));
+        new Chart(document.getElementById('chartIMFz'), config('IMF Z vector', allDataIMFz, 'yellow'));
+        new Chart(document.getElementById('chartSpeed'), config('Proton speed', allDataSpeed, 'red'));
+        new Chart(document.getElementById('chartDensity'), config('Proton density', allDataDensity, 'lime'));
+        new Chart(document.getElementById('chartTemp'), config('Proton temperature', allDataTemp, 'purple'));
     }
+
+    // Modal Funktionalität
+    const chartModal = document.getElementById('chartModal');
+    const closeButton = document.querySelector('.close-button');
+    const modalChartCanvas = document.getElementById('modalChart');
+    const modalChartTitle = document.getElementById('modalChartTitle');
+    const timeSelectors = document.querySelectorAll('.time-selector button');
+
+    // Öffnet das Modal und rendert den Graphen
+    document.querySelectorAll('.card').forEach(card => {
+        card.addEventListener('click', function() {
+            currentChartType = this.dataset.chart;
+            const title = this.querySelector('h2').textContent;
+            modalChartTitle.textContent = title;
+            chartModal.style.display = 'flex'; // Zeigt das Modal an
+
+            // Setzt den Standard-Zeitraum auf 24h und rendert den Graphen
+            timeSelectors.forEach(btn => btn.classList.remove('active'));
+            document.querySelector('.time-selector button[data-period="24h"]').classList.add('active');
+            renderModalChart('24h');
+        });
+    });
+
+    // Schließt das Modal
+    closeButton.addEventListener('click', function() {
+        chartModal.style.display = 'none';
+        if (modalChartInstance) {
+            modalChartInstance.destroy(); // Zerstört die alte Chart-Instanz
+            modalChartInstance = null;
+        }
+    });
+
+    // Schließt das Modal, wenn außerhalb geklickt wird
+    window.addEventListener('click', function(event) {
+        if (event.target == chartModal) {
+            chartModal.style.display = 'none';
+            if (modalChartInstance) {
+                modalChartInstance.destroy();
+                modalChartInstance = null;
+            }
+        }
+    });
+
+    // Rendert den Graphen im Modal basierend auf dem ausgewählten Zeitraum
+    function renderModalChart(period) {
+        let labels, data, chartLabel, color;
+
+        let dataSliceLength;
+        if (period === '24h') dataSliceLength = 24;
+        else if (period === '48h') dataSliceLength = 48;
+        else if (period === '72h') dataSliceLength = 72;
+        else dataSliceLength = 24; // Standard
+
+        labels = allTimeLabels.slice(-dataSliceLength);
+
+        switch(currentChartType) {
+            case 'IMF':
+                data = allDataIMF.slice(-dataSliceLength);
+                chartLabel = 'IMF total field';
+                color = 'orange';
+                break;
+            case 'IMFz':
+                data = allDataIMFz.slice(-dataSliceLength);
+                chartLabel = 'IMF Z vector';
+                color = 'yellow';
+                break;
+            case 'Speed':
+                data = allDataSpeed.slice(-dataSliceLength);
+                chartLabel = 'Proton speed';
+                color = 'red';
+                break;
+            case 'Density':
+                data = allDataDensity.slice(-dataSliceLength);
+                chartLabel = 'Proton density';
+                color = 'lime';
+                break;
+            case 'Temp':
+                data = allDataTemp.slice(-dataSliceLength);
+                chartLabel = 'Proton temperature';
+                color = 'purple';
+                break;
+            default:
+                return;
+        }
+
+        if (modalChartInstance) {
+            modalChartInstance.destroy(); // Zerstört die alte Instanz, bevor eine neue erstellt wird
+        }
+
+        modalChartInstance = new Chart(modalChartCanvas, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: chartLabel,
+                    data: data,
+                    borderColor: color,
+                    backgroundColor: 'rgba(0,0,0,0)', // Transparenter Hintergrund
+                    tension: 0.3,
+                    pointRadius: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false, // Wichtig für die Höhenkontrolle im Modal
+                plugins: { legend: { display: true, labels: { color: '#fff' } } },
+                scales: {
+                    x: {
+                        ticks: { color: '#888', maxTicksLimit: 12 }
+                    },
+                    y: {
+                        ticks: { color: '#888' }
+                    }
+                }
+            }
+        });
+    }
+
+    // Event Listener für die Zeitauswahl-Buttons
+    timeSelectors.forEach(button => {
+        button.addEventListener('click', function() {
+            // Entfernt 'active' von allen Buttons und fügt es dem geklickten hinzu
+            timeSelectors.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            renderModalChart(this.dataset.period);
+        });
+    });
 
     fetchNOAAData();
   </script>
