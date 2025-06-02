@@ -1,359 +1,981 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta charset="UTF-8">
-  <title>NOAA Weltraumwetter Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #121212;
-      color: #fff;
-      padding: 20px;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weltraumwetter Dashboard</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" integrity="sha512-9usAa10IRO0HhonpyAIVpjrylPvoDwiPUiKdWk5t3PyolY1cOd4DSE0Ga+ri4AuTroPR5aQvXU9xC6qOPnzFeg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #1a1a2e; /* Dunkler Hintergrund */
+            color: #e0e0e0;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
 
-    h1 {
-      text-align: center;
-      margin-bottom: 30px;
-    }
+        h1 {
+            color: #00bcd4; /* Akzentfarbe */
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            text-align: center;
+        }
 
-    .dashboard {
-      display: flex;
-      flex-direction: row;
-      flex-wrap: wrap;
-      justify-content: flex-start; /* Geändert: linksbündig */
-      gap: 20px;
-      max-width: 1200px;
-      margin: auto;
-    }
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); /* Responsives Grid */
+            gap: 20px;
+            max-width: 1200px; /* Maximale Breite des Dashboards */
+            width: 100%;
+        }
 
-    .card {
-      background: #1e1e1e;
-      border: 1px solid #333;
-      border-radius: 12px;
-      padding: 20px;
-      width: calc(33.333% - 20px);
-      min-width: 280px;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.4);
-      box-sizing: border-box;
-      cursor: pointer; /* Zeigt an, dass die Karte anklickbar ist */
-      transition: transform 0.2s ease-in-out; /* Für einen kleinen Hover-Effekt */
-    }
+        .card {
+            background-color: #2e2e4a; /* Dunklere Karte */
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.4);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: pointer;
+        }
 
-    .card:hover {
-      transform: translateY(-5px);
-    }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6);
+        }
 
-    .card h2 {
-      font-size: 1.3em;
-      margin: 0 0 10px;
-    }
+        .card h2 {
+            color: #00bcd4; /* Akzentfarbe für Überschriften */
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-size: 1.6em;
+        }
 
-    .value {
-      font-size: 2.2em;
-      color: #ff9800;
-      margin-bottom: 8px;
-    }
+        .icon {
+            font-size: 3em;
+            color: #ff9800; /* Orangener Akzent für Icons */
+            margin-bottom: 15px;
+        }
 
-    .description {
-      color: #ccc;
-      font-size: 0.95em;
-      margin-bottom: 15px;
-    }
+        .value {
+            font-size: 2.8em;
+            font-weight: bold;
+            color: #4caf50; /* Grün für Werte */
+            margin-bottom: 10px;
+        }
 
-    canvas {
-      background-color: #191919;
-      border-radius: 10px;
-      width: 100%;
-      height: 250px;
-    }
+        .unit {
+            font-size: 1.1em;
+            color: #a0a0a0;
+        }
 
-    /* Modal für die Großansicht */
-    .modal {
-      display: none; /* Standardmäßig versteckt */
-      position: fixed; /* Fixiert über dem Inhalt */
-      z-index: 1000; /* Ganz oben */
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      overflow: auto; /* Scrollbar, falls Inhalt zu groß */
-      background-color: rgba(0,0,0,0.7); /* Halbdurchsichtiger Hintergrund */
-      justify-content: center;
-      align-items: center;
-    }
+        .description {
+            font-size: 0.9em;
+            color: #b0b0b0;
+            margin-top: 15px;
+            line-height: 1.5;
+        }
 
-    .modal-content {
-      background-color: #1e1e1e;
-      margin: auto;
-      padding: 20px;
-      border: 1px solid #333;
-      border-radius: 12px;
-      width: 80%; /* Breite des Modals */
-      max-width: 900px; /* Maximale Breite */
-      position: relative;
-      animation: fadeIn 0.3s;
-    }
+        .loading {
+            color: #888;
+            font-style: italic;
+        }
 
-    @keyframes fadeIn {
-      from {opacity: 0;}
-      to {opacity: 1;}
-    }
+        .error {
+            color: #e57373;
+            font-weight: bold;
+        }
 
-    .close-button {
-      color: #aaa;
-      float: right;
-      font-size: 28px;
-      font-weight: bold;
-      cursor: pointer;
-    }
+        canvas {
+            background-color: #1e1e32;
+            border-radius: 8px;
+            margin-top: 15px;
+            width: 100% !important; /* Wichtig für Chart.js in Flexbox */
+            height: 200px; /* Feste Höhe für kleine Charts */
+        }
 
-    .close-button:hover,
-    .close-button:focus {
-      color: #fff;
-      text-decoration: none;
-      cursor: pointer;
-    }
+        /* --- Modal für große Charts --- */
+        .modal {
+            display: none; /* Versteckt als Standard */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.7); /* Dunkler, halbtransparenter Hintergrund */
+            justify-content: center;
+            align-items: center;
+        }
 
-    .modal-chart-container {
-        width: 100%;
-        height: 400px; /* Höhe des Graphen im Modal */
-        margin-top: 20px;
-    }
+        .modal-content {
+            background-color: #2e2e4a;
+            margin: auto;
+            padding: 20px;
+            border: 1px solid #4a4a6e;
+            border-radius: 12px;
+            width: 80%;
+            max-width: 900px;
+            position: relative;
+            animation: fadeIn 0.3s;
+        }
 
-    .time-selector {
-        margin-top: 15px;
-        display: flex;
-        gap: 10px;
-        justify-content: center;
-        align-items: center;
-    }
+        @keyframes fadeIn {
+            from {opacity: 0;}
+            to {opacity: 1;}
+        }
 
-    .time-selector button {
-        background-color: #007bff;
-        color: white;
-        border: none;
-        padding: 8px 15px;
-        border-radius: 5px;
-        cursor: pointer;
-        transition: background-color 0.2s;
-    }
+        .close-button {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
 
-    .time-selector button:hover {
-        background-color: #0056b3;
-    }
+        .close-button:hover,
+        .close-button:focus {
+            color: #fff;
+            text-decoration: none;
+            cursor: pointer;
+        }
 
-    .time-selector button.active {
-        background-color: #28a745;
-    }
+        .modal-chart-container {
+            width: 100%;
+            height: 400px; /* Höhe für das große Chart */
+            margin-top: 20px;
+        }
 
-    @media (max-width: 900px) {
-      .dashboard {
-        justify-content: center; /* Zentrierung für kleinere Bildschirme beibehalten, wenn es nur 2 Spalten gibt */
-      }
-      .card {
-        width: calc(50% - 20px);
-      }
-      .modal-content {
-          width: 90%;
-      }
-    }
+        .time-selector {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            flex-wrap: wrap; /* Erlaubt Umbruch auf kleinen Bildschirmen */
+        }
 
-    @media (max-width: 600px) {
-      .card {
-        padding: 15px;
-        width: 100%;
-      }
-      .value {
-        font-size: 1.8em;
-      }
-      .time-selector {
-          flex-direction: column;
-      }
-      .modal-chart-container {
-          height: 300px;
-      }
-    }
-  </style>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+        .time-selector button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .time-selector button:hover {
+            background-color: #0056b3;
+        }
+
+        .time-selector button.active {
+            background-color: #28a745; /* Aktiver Button grün */
+        }
+
+        /* --- Kp-Index Info Popup (integriert ins Design) --- */
+        .kp-info-button {
+            background-color: #007bff; /* Blau wie Zeit-Buttons */
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: background-color 0.2s;
+        }
+        .kp-info-button:hover {
+            background-color: #0056b3;
+        }
+        .kp-info {
+            background-color: #3e3e5a; /* Etwas heller als Card */
+            color: #e0e0e0;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            text-align: left;
+            display: none; /* Standardmäßig versteckt */
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .kp-info strong {
+            color: #ff9800; /* Orange Akzent */
+        }
+        .kp-info ul {
+            list-style-type: disc;
+            margin-left: 20px;
+            padding: 0;
+        }
+        .kp-info li {
+            margin-bottom: 5px;
+        }
+
+        /* --- Image Popups (für ACE und Aurora Bilder) --- */
+        .image-placeholder {
+            width: 100%;
+            height: 180px; /* Angepasste Höhe für das Card-Layout */
+            background-color: #1e1e32;
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: #b0b0b0;
+            font-size: 0.9em;
+            cursor: pointer;
+            overflow: hidden;
+            background-size: cover;
+            background-position: center;
+            margin-top: 15px;
+            position: relative;
+        }
+        .image-placeholder img, .image-placeholder iframe {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* Damit das Bild nicht abgeschnitten wird */
+        }
+        .image-popup {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 1002; /* Höher als das Modal */
+            cursor: pointer;
+        }
+        .image-popup img, .image-popup iframe {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+    </style>
 </head>
 <body>
-  <h1>NOAA Weltraumwetter Dashboard</h1>
 
-  <div class="dashboard">
-    <div class="card" data-chart="IMF">
-      <h2>IMF total field (nT)</h2>
-      <div class="value" id="imfTotal">--</div>
-      <div class="description">Gesamtstärke des interplanetaren Magnetfelds</div>
-      <canvas id="chartIMF"></canvas>
+<h1><i class="fas fa-satellite"></i> Weltraumwetter Dashboard</h1>
+
+<div class="dashboard">
+    <div class="card" data-chart-type="Kp">
+        <i class="fas fa-bolt icon"></i>
+        <h2>Kp-Index</h2>
+        <div class="value-container">
+            <span id="kp-index" class="value loading">Lade...</span>
+            <span class="unit"></span>
+        </div>
+        <p class="description">Der Kp-Index misst die globale geomagnetische Aktivität. Höhere Werte bedeuten stärkere geomagnetische Stürme und eine höhere Wahrscheinlichkeit für Polarlichter.</p>
+        <canvas id="chartKpSmall"></canvas>
+        <button class="kp-info-button" onclick="toggleKpInfo(event)">Mehr Infos zum Kp-Index</button>
+        <div id="kp-info" class="kp-info">
+            <strong>Kp-Werte und ihre Bedeutung (ungefähr):</strong>
+            <ul>
+                <li>Kp 0-4: Geringe Aktivität (Polarlichter meist nur in hohen Breiten)</li>
+                <li>Kp 5-6: Mäßige Aktivität (Polarlichter eventuell in mittleren Breiten sichtbar)</li>
+                <li>Kp 7-8: Starke Aktivität (Gute Chancen für Polarlichter, eventuell in niedrigen breiten)</li>
+                <li>Kp 9: Extreme Aktivität (Sehr hohe Wahrscheinlichkeit für Polarlichter, weltweit sichtbar unter optimalen Bedingungen!)</li>
+            </ul>
+        </div>
     </div>
 
-    <div class="card" data-chart="IMFz">
-      <h2>IMF Z vector (nT)</h2>
-      <div class="value" id="imfZ">--</div>
-      <div class="description">Z-Komponente des interplanetaren Magnetfelds</div>
-      <canvas id="chartIMFz"></canvas>
+    <div class="card" data-chart-type="IMFz">
+        <i class="fas fa-magnet icon"></i>
+        <h2>Bz-Wert</h2>
+        <div class="value-container">
+            <span id="bz-value" class="value loading">Lade...</span>
+            <span class="unit">nT</span>
+        </div>
+        <p class="description">Die Nord-Süd-Komponente des Interplanetaren Magnetfelds (IMF). Ein negativer Bz-Wert (nach Süden gerichtet) ist entscheidend für das Eintreten von Polarlichtern.</p>
+        <canvas id="chartBzSmall"></canvas>
     </div>
 
-    <div class="card" data-chart="Speed">
-      <h2>Proton speed (km/s)</h2>
-      <div class="value" id="protonSpeed">--</div>
-      <div class="description">Geschwindigkeit des Sonnenwinds</div>
-      <canvas id="chartSpeed"></canvas>
+    <div class="card" data-chart-type="Speed">
+        <i class="fas fa-wind icon"></i>
+        <h2>Solarwindgeschwindigkeit</h2>
+        <div class="value-container">
+            <span id="solar-wind-speed" class="value loading">Lade...</span>
+            <span class="unit">km/s</span>
+        </div>
+        <p class="description">Die Geschwindigkeit, mit der der Sonnenwind auf das Erdmagnetfeld trifft. Höhere Geschwindigkeiten können die Polarlichtintensität erhöhen.</p>
+        <canvas id="chartSpeedSmall"></canvas>
     </div>
 
-    <div class="card" data-chart="Density">
-      <h2>Proton density (p/cm³)</h2>
-      <div class="value" id="protonDensity">--</div>
-      <div class="description">Anzahl der Protonen pro cm³</div>
-      <canvas id="chartDensity"></canvas>
+    <div class="card" data-chart-type="Density">
+        <i class="fas fa-atom icon"></i>
+        <h2>Solarwinddichte</h2>
+        <div class="value-container">
+            <span id="solar-wind-density" class="value loading">Lade...</span>
+            <span class="unit">p/cm³</span>
+        </div>
+        <p class="description">Die Anzahl der Teilchen im Sonnenwind. Eine höhere Dichte liefert mehr Material für die Wechselwirkung mit dem Erdmagnetfeld.</p>
+        <canvas id="chartDensitySmall"></canvas>
     </div>
 
-    <div class="card" data-chart="Temp">
-      <h2>Proton temperature (K)</h2>
-      <div class="value" id="protonTemp">--</div>
-      <div class="description">Temperatur der Protonen im Sonnenwind</div>
-      <canvas id="chartTemp"></canvas>
+    <div class="card" data-chart-type="IMF">
+        <i class="fas fa-solar-panel icon"></i>
+        <h2>Bt-Wert (IMF Total)</h2>
+        <div class="value-container">
+            <span id="bt-value" class="value loading">Lade...</span>
+            <span class="unit">nT</span>
+        </div>
+        <p class="description">Die Gesamtstärke des Interplanetaren Magnetfelds (IMF). Ein starkes IMF, besonders bei negativem Bz, kann zu intensiveren Polarlichtern führen.</p>
+        <canvas id="chartBtSmall"></canvas>
     </div>
-  </div>
 
-  <div id="chartModal" class="modal">
+    <div class="card" data-chart-type="DST">
+        <i class="fas fa-chart-line icon"></i>
+        <h2>DST-Index</h2>
+        <div class="value-container">
+            <span id="dst-index" class="value loading">Lade...</span>
+            <span class="unit">nT</span>
+        </div>
+        <p class="description">Der Disturbance Storm Time (DST) Index misst die Stärke des äquatorialen Ringstroms. Starke negative Werte deuten auf geomagnetische Stürme hin.</p>
+        <canvas id="chartDstSmall"></canvas>
+    </div>
+
+    <div class="card" data-chart-type="Xray">
+        <i class="fas fa-sun icon"></i>
+        <h2>X-Ray Flux</h2>
+        <div class="value-container">
+            <span id="solar-activity" class="value loading">Lade...</span>
+            <span class="unit"></span>
+        </div>
+        <p class="description">Misst die Intensität der Röntgenstrahlung von der Sonne. Ein Anstieg kann auf Sonneneruptionen hinweisen.</p>
+        <canvas id="chartXraySmall"></canvas>
+    </div>
+
+    <div class="card">
+        <i class="fas fa-fire-alt icon"></i>
+        <h2>Max X-Ray Flux (24h)</h2>
+        <div class="value-container">
+            <span id="solar-activity-max" class="value loading">Lade...</span>
+            <span class="unit"></span>
+        </div>
+        <p class="description">Die höchste gemessene Röntgenstrahlungsintensität der letzten 24 Stunden.</p>
+    </div>
+
+    <div class="card" data-chart-type="RadioFlux">
+        <i class="fas fa-broadcast-tower icon"></i>
+        <h2>Radio Flux 10.7cm</h2>
+        <div class="value-container">
+            <span id="radio-flux" class="value loading">Lade...</span>
+            <span class="unit">sfu</span>
+        </div>
+        <p class="description">Ein Indikator für die solare Radioemission und die allgemeine Sonnenaktivität.</p>
+        <canvas id="chartRadioFluxSmall"></canvas>
+    </div>
+
+    <div class="card">
+        <i class="fas fa-chart-area icon"></i>
+        <h2>ACE Mag & SWEPAM</h2>
+        <div id="ace-mag-swepam-placeholder" class="image-placeholder"
+             onclick="showImagePopup('https://services.swpc.noaa.gov/images/ace-mag-swepam-24-hour.gif')"
+             style="background-image: url('https://services.swpc.noaa.gov/images/ace-mag-swepam-24-hour.gif');">
+        </div>
+        <p class="description">Magnetfeld- und Sonnenwinddaten vom ACE-Satelliten der letzten 24 Stunden.</p>
+    </div>
+
+    <div class="card">
+        <i class="fas fa-chart-pie icon"></i>
+        <h2>ACE EPAM</h2>
+        <div id="ace-epam-placeholder" class="image-placeholder"
+             onclick="showImagePopup('https://services.swpc.noaa.gov/images/ace-epam-3-day.gif')"
+             style="background-image: url('https://services.swpc.noaa.gov/images/ace-epam-3-day.gif');">
+        </div>
+        <p class="description">Elektronen- und Protonenaktivität vom ACE-Satelliten der letzten 3 Tage.</p>
+    </div>
+
+    <div class="card">
+        <i class="fas fa-wifi icon"></i>
+        <h2>D-Region Absorption</h2>
+        <div id="dynamicImage2Container" class="image-placeholder"
+             onclick="if (document.getElementById('dynamicImage2').src) { showImagePopup(document.getElementById('dynamicImage2').src); }">
+            <img id="dynamicImage2" src="" alt="D-Region Absorption" style="width: 100%; height: 100%; object-fit: contain;">
+        </div>
+        <p class="description">Zeigt die Radioabsorptionszone in der D-Region der Ionosphäre, beeinflusst durch Sonnenstrahlung.</p>
+    </div>
+
+    <div class="card">
+        <i class="fas fa-cloud-sun-rain icon"></i>
+        <h2>Aurora Vorhersage (Nord)</h2>
+        <div class="image-placeholder"
+             onclick="showImagePopup('https://services.swpc.noaa.gov/images/animations/ovation/north/latest.jpg')"
+             style="background-image: url('https://services.swpc.noaa.gov/images/animations/ovation/north/latest.jpg');">
+        </div>
+        <p class="description">Aktuelle Vorhersage der Polarlichtverteilung über der Nordhalbkugel.</p>
+    </div>
+
+    <div class="card">
+        <i class="fas fa-location-dot icon"></i>
+        <h2>Dein Standort</h2>
+        <div class="value-container">
+            <span id="latitude" class="value loading">Lade...</span>
+            <span class="unit">Breitengrad</span>
+        </div>
+        <div class="value-container">
+            <span id="longitude" class="value loading">Lade...</span>
+            <span class="unit">Längengrad</span>
+        </div>
+        <p class="description">Deine geografischen Koordinaten, die zur Berechnung der Polarlichtwahrscheinlichkeit genutzt werden.</p>
+    </div>
+
+    <div class="card">
+        <i class="fas fa-sparkles icon"></i>
+        <h2>Polarlicht-Wahrscheinlichkeit</h2>
+        <div class="value-container">
+            <span id="aurora-probability" class="value loading">Lade...</span>
+            <span class="unit"></span>
+        </div>
+        <p class="description">Eine Schätzung der Polarlichtwahrscheinlichkeit basierend auf deinen Koordinaten und aktuellen Weltraumwetterdaten. Beachte: Dies ist nur eine vereinfachte Vorhersage!</p>
+    </div>
+
+</div>
+
+<div id="chartModal" class="modal">
     <div class="modal-content">
-      <span class="close-button">&times;</span>
-      <h2 id="modalChartTitle"></h2>
-      <div class="modal-chart-container">
-        <canvas id="modalChart"></canvas>
-      </div>
-      <div class="time-selector">
-        <button data-period="24h" class="active">Letzte 24h</button>
-        <button data-period="48h">Letzte 48h</button>
-        <button data-period="72h">Letzte 72h</button>
-      </div>
+        <span class="close-button">×</span>
+        <h2 id="modalChartTitle"></h2>
+        <div class="modal-chart-container">
+            <canvas id="modalChart"></canvas>
+        </div>
+        <div class="time-selector">
+            <button data-period="24h" class="active">Letzte 24h</button>
+            <button data-period="48h">Letzte 48h</button>
+            <button data-period="72h">Letzte 72h</button>
+        </div>
     </div>
-  </div>
+</div>
 
-  <script>
-    const allTimeLabels = [];
-    const allDataIMF = [];
-    const allDataIMFz = [];
-    const allDataSpeed = [];
-    const allDataDensity = [];
-    const allDataTemp = [];
+<div id="image-popup" class="image-popup" onclick="hideImagePopup()">
+    <img id="popup-image" src="" alt="Großansicht">
+    <iframe id="popup-iframe" src="" frameborder="0" allowfullscreen style="display:none;"></iframe>
+</div>
 
-    let currentChartType = null; // Speichert den aktuell ausgewählten Graphentyp
-    let modalChartInstance = null; // Speichert die Chart.js Instanz des Modals
+<script>
+    // --- Global variables for space weather data ---
+    let currentKpIndex = 0;
+    let currentBz = 0;
+    let currentSolarWindSpeed = 0;
+    let currentSolarWindDensity = 0;
+    let currentBt = 0;
 
-    // Hilfsfunktion zur Generierung von Dummy-Daten
-    function generateDummyData(hours) {
-        const labels = [];
-        const imf = [];
-        const imfz = [];
-        const speed = [];
-        const density = [];
-        const temp = [];
+    // --- Variables for Chart.js historical data (will be populated by API calls) ---
+    const historicalTimeLabels = [];
+    const historicalDataIMF = []; // For Bt
+    const historicalDataIMFz = []; // For Bz
+    const historicalDataSpeed = []; // For Solar Wind Speed
+    const historicalDataDensity = []; // For Solar Wind Density
+    const historicalDataKp = []; // For Kp-Index
+    const historicalDataDst = []; // For DST-Index
+    const historicalDataXray = []; // For Solar X-Ray Flux
+    const historicalDataRadioFlux = []; // For Radio Flux
 
-        for (let i = 0; i < hours; i++) {
-            const date = new Date();
-            date.setHours(date.getHours() - (hours - 1 - i)); // Geht rückwärts in der Zeit
-            labels.push(date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-            imf.push(10 + Math.random() * 5);
-            imfz.push(-5 + Math.random() * 10);
-            speed.push(400 + Math.random() * 200);
-            density.push(Math.random() * 10);
-            temp.push(Math.random() * 500000);
-        }
-        return { labels, imf, imfz, speed, density, temp };
+    let smallChartInstances = {}; // To store instances of small charts
+    let currentModalChartType = null;
+    let modalChartInstance = null;
+
+    // --- Helper function to format time ---
+    function formatTime(dateString) {
+        const date = new Date(dateString);
+        return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
-    async function fetchNOAAData() {
-        // Generiere 72 Stunden Dummy-Daten
-        const dummyData = generateDummyData(72);
-        allTimeLabels.push(...dummyData.labels);
-        allDataIMF.push(...dummyData.imf);
-        allDataIMFz.push(...dummyData.imfz);
-        allDataSpeed.push(...dummyData.speed);
-        allDataDensity.push(...dummyData.density);
-        allDataTemp.push(...dummyData.temp);
+    // --- Function to fetch historical data for charts ---
+    async function fetchHistoricalSpaceWeatherData() {
+        try {
+            const now = Date.now();
+            const threeDaysAgo = now - (72 * 60 * 60 * 1000); // 72 hours in milliseconds
 
-        // Live-Werte (immer vom letzten verfügbaren Datenpunkt)
-        document.getElementById('imfTotal').textContent = allDataIMF.at(-1).toFixed(1);
-        document.getElementById('imfZ').textContent = allDataIMFz.at(-1).toFixed(1);
-        document.getElementById('protonSpeed').textContent = allDataSpeed.at(-1).toFixed(0);
-        document.getElementById('protonDensity').textContent = allDataDensity.at(-1).toFixed(1);
-        document.getElementById('protonTemp').textContent = (allDataTemp.at(-1)).toFixed(0) + ' K';
+            // --- Fetch 1-minute data for higher resolution charts ---
+            const [responseMag, responseWind, responseKpHistorical, responseXrayHistorical] = await Promise.all([
+                fetch('https://services.swpc.noaa.gov/json/dscovr/dscovr_mag_1m.json'),
+                fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json'),
+                fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'),
+                fetch('https://services.swpc.noaa.gov/json/goes/primary/goes-xray-flux-1m.json')
+            ]);
 
-        renderSmallCharts();
-    }
+            const dataMag = await responseMag.json();
+            const dataWind = await responseWind.json();
+            const dataKpHistorical = await responseKpHistorical.json();
+            const dataXrayHistorical = await responseXrayHistorical.json();
 
-    function renderSmallCharts() {
-        const config = (label, data, color) => ({
-            type: 'line',
-            data: {
-                // Zeigt nur die letzten 24 Stunden für die kleinen Graphen an
-                labels: allTimeLabels.slice(-24),
-                datasets: [{
-                    label: label,
-                    data: data.slice(-24),
-                    borderColor: color,
-                    backgroundColor: 'transparent',
-                    tension: 0.3,
-                    pointRadius: 0
-                }]
-            },
-            options: {
-                responsive: true,
-                plugins: { legend: { display: false } },
-                scales: {
-                    x: {
-                        ticks: { color: '#888', maxTicksLimit: 8 }
-                    },
-                    y: {
-                        ticks: { color: '#888' }
-                    }
+            // --- Fetch hourly data for DST (if needed, it's less granular) ---
+            const responseDstHistorical = await fetch('https://services.swpc.noaa.gov/json/geospace/geospace_dst_1_hour.json');
+            const dataDstHistorical = await responseDstHistorical.json();
+
+            // --- Fetch daily data for Radio Flux (typically daily) ---
+            const responseRadioFlux = await fetch("https://services.swpc.noaa.gov/products/summary/10cm-flux.json");
+            const dataRadioFlux = await responseRadioFlux.json();
+
+            // Clear previous historical data
+            historicalTimeLabels.length = 0;
+            historicalDataIMF.length = 0;
+            historicalDataIMFz.length = 0;
+            historicalDataSpeed.length = 0;
+            historicalDataDensity.length = 0;
+            historicalDataKp.length = 0;
+            historicalDataDst.length = 0;
+            historicalDataXray.length = 0;
+            historicalDataRadioFlux.length = 0;
+
+            // Populate historical data arrays, filtering for the last 72 hours
+            // Using dscovr_mag_1m data for primary timestamps as it's quite complete
+            dataMag.forEach(item => {
+                const itemTime = new Date(item.time_tag).getTime();
+                if (itemTime > threeDaysAgo) {
+                    historicalTimeLabels.push(formatTime(item.time_tag));
+                    historicalDataIMF.push(parseFloat(item.bt));
+                    historicalDataIMFz.push(parseFloat(item.bz_gsm));
                 }
-            }
-        });
+            });
 
-        new Chart(document.getElementById('chartIMF'), config('IMF total field', allDataIMF, 'orange'));
-        new Chart(document.getElementById('chartIMFz'), config('IMF Z vector', allDataIMFz, 'yellow'));
-        new Chart(document.getElementById('chartSpeed'), config('Proton speed', allDataSpeed, 'red'));
-        new Chart(document.getElementById('chartDensity'), config('Proton density', allDataDensity, 'lime'));
-        new Chart(document.getElementById('chartTemp'), config('Proton temperature', allDataTemp, 'purple'));
+            // Add other data, aligning by time where possible or using nearest time
+            dataWind.filter(item => item.source === 'DSCOVR').forEach(item => {
+                const itemTime = new Date(item.time_tag).getTime();
+                if (itemTime > threeDaysAgo) {
+                    historicalDataSpeed.push(parseFloat(item.proton_speed));
+                    historicalDataDensity.push(parseFloat(item.proton_density));
+                }
+            });
+
+            dataKpHistorical.forEach(item => {
+                const itemTime = new Date(item.time_tag).getTime();
+                if (itemTime > threeDaysAgo) {
+                    historicalDataKp.push(parseFloat(item.kp_index));
+                }
+            });
+
+            dataDstHistorical.forEach(item => {
+                const itemTime = new Date(item.time_tag).getTime();
+                if (itemTime > threeDaysAgo) {
+                    historicalDataDst.push(parseFloat(item.dst));
+                }
+            });
+
+            dataXrayHistorical.forEach(item => {
+                const itemTime = new Date(item.time_tag).getTime();
+                if (itemTime > threeDaysAgo) {
+                    const classValue = item.xray_class;
+                    let numValue = 0;
+                    if (classValue) {
+                        const letter = classValue.charAt(0);
+                        const number = parseFloat(classValue.substring(1));
+                        if (letter === 'A') numValue = number * 1e-8;
+                        else if (letter === 'B') numValue = number * 1e-7;
+                        else if (letter === 'C') numValue = number * 1e-6;
+                        else if (letter === 'M') numValue = number * 1e-5;
+                        else if (letter === 'X') numValue = number * 1e-4;
+                    }
+                    historicalDataXray.push(numValue);
+                }
+            });
+
+            if (dataRadioFlux && dataRadioFlux.Flux) {
+                historicalDataRadioFlux.push(parseFloat(dataRadioFlux.Flux)); // Current value only
+            }
+
+            renderSmallCharts();
+
+        } catch (error) {
+            console.error('Fehler beim Abrufen historischer Daten:', error);
+        }
     }
 
-    // Modal Funktionalität
+    // --- Small Chart Rendering Function ---
+    function renderSmallCharts() {
+        for (const chartId in smallChartInstances) {
+            if (smallChartInstances[chartId]) {
+                smallChartInstances[chartId].destroy();
+            }
+        }
+        smallChartInstances = {};
+
+        const chartConfigs = {
+            'chartKpSmall': { label: 'Kp-Index', data: historicalDataKp, color: '#00bcd4' },
+            'chartBzSmall': { label: 'Bz-Wert', data: historicalDataIMFz, color: '#ff9800' },
+            'chartSpeedSmall': { label: 'Geschwindigkeit', data: historicalDataSpeed, color: '#4caf50' },
+            'chartDensitySmall': { label: 'Dichte', data: historicalDataDensity, color: '#e57373' },
+            'chartBtSmall': { label: 'Bt-Wert', data: historicalDataIMF, color: '#2196f3' },
+            'chartDstSmall': { label: 'DST-Index', data: historicalDataDst, color: '#f44336' },
+            'chartXraySmall': { label: 'X-Ray-Flux', data: historicalDataXray, color: '#ffeb3b' },
+            'chartRadioFluxSmall': { label: 'Radio Flux', data: historicalDataRadioFlux, color: '#9c27b0' },
+        };
+
+        for (const id in chartConfigs) {
+            const ctx = document.getElementById(id);
+            if (ctx) {
+                const config = chartConfigs[id];
+                smallChartInstances[id] = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        // Displaying up to the last 24 hours (1440 minutes) for small charts
+                        labels: historicalTimeLabels.slice(-1440),
+                        datasets: [{
+                            label: config.label,
+                            data: config.data.slice(-1440),
+                            borderColor: config.color,
+                            backgroundColor: 'transparent',
+                            tension: 0.3,
+                            pointRadius: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: {
+                                ticks: { color: '#888', maxTicksLimit: 6 },
+                                grid: { color: 'rgba(255,255,255,0.05)' }
+                            },
+                            y: {
+                                ticks: { color: '#888' },
+                                grid: { color: 'rgba(255,255,255,0.05)' }
+                            }
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+    // --- Fetch and update current real-time data ---
+    async function fetchSpaceWeatherData() {
+        try {
+            const [
+                resKp, resWind, resMag, resDst, resXrayCurrent, resRadioFlux, resXray24h
+            ] = await Promise.all([
+                fetch('https://services.swpc.noaa.gov/json/planetary_k_index_1m.json'),
+                fetch('https://services.swpc.noaa.gov/json/rtsw/rtsw_wind_1m.json'),
+                fetch('https://services.swpc.noaa.gov/json/dscovr/dscovr_mag_1s.json'), // 1-second data for most current Bz/Bt
+                fetch('https://services.swpc.noaa.gov/json/geospace/geospace_dst_1_hour.json'),
+                fetch("https://services.swpc.noaa.gov/json/goes/primary/xray-flares-latest.json"),
+                fetch("https://services.swpc.noaa.gov/products/summary/10cm-flux.json"),
+                fetch("https://services.swpc.noaa.gov/json/goes/primary/xray-flares-7-day.json") // For 24h max
+            ]);
+
+            const dataKp = await resKp.json();
+            const dataWind = await resWind.json();
+            const dataMag = await resMag.json();
+            const dataDst = await resDst.json();
+            const dataXrayCurrent = await resXrayCurrent.json();
+            const dataRadioFlux = await resRadioFlux.json();
+            const dataXray24h = await resXray24h.json();
+
+            // Kp Index
+            const latestKpData = dataKp[0];
+            currentKpIndex = latestKpData ? parseFloat(latestKpData.kp_index) : 0;
+            document.getElementById('kp-index').textContent = latestKpData ? currentKpIndex.toFixed(1) : 'N/A';
+
+            // Solar Wind Speed & Density
+            const latestWindData = dataWind.slice(1).find(item => item.source === 'DSCOVR'); // Skip header
+            currentSolarWindSpeed = latestWindData ? parseFloat(latestWindData.proton_speed) : 0;
+            currentSolarWindDensity = latestWindData ? parseFloat(latestWindData.proton_density) : 0;
+            document.getElementById('solar-wind-speed').textContent = latestWindData ? currentSolarWindSpeed.toFixed(0) : 'N/A';
+            document.getElementById('solar-wind-density').textContent = latestWindData ? currentSolarWindDensity.toFixed(2) : 'N/A';
+
+            // Bz & Bt
+            const latestMagData = dataMag[0];
+            currentBz = latestMagData ? parseFloat(latestMagData.bz_gsm) : 0;
+            currentBt = latestMagData ? parseFloat(latestMagData.bt) : 0;
+            document.getElementById('bz-value').textContent = latestMagData ? currentBz.toFixed(2) : 'N/A';
+            document.getElementById('bt-value').textContent = latestMagData ? currentBt.toFixed(2) : 'N/A';
+
+            // DST Index
+            const latestDstData = dataDst[0];
+            document.getElementById('dst-index').textContent = latestDstData ? parseFloat(latestDstData.dst).toFixed(2) : 'N/A';
+
+            // X-Ray Flux Current
+            const latestXrayCurrent = dataXrayCurrent[0];
+            document.getElementById('solar-activity').textContent = latestXrayCurrent ? latestXrayCurrent.current_class : 'N/A';
+
+            // Max X-Ray Flux 24h
+            const now = new Date();
+            const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            const last24hFlares = dataXray24h.filter(item => new Date(item.time_tag) > dayAgo);
+            const maxClassValue = last24hFlares.reduce((max, item) => {
+                const classValue = item.max_class;
+                if (!classValue) return max;
+                const order = { 'A': 1, 'B': 2, 'C': 3, 'M': 4, 'X': 5 };
+                const currentLetter = classValue.charAt(0);
+                const currentNumber = parseFloat(classValue.substring(1));
+                const maxLetter = max.charAt(0);
+                const maxNumber = parseFloat(max.substring(1));
+
+                if (order[currentLetter] > order[maxLetter]) {
+                    return classValue;
+                } else if (order[currentLetter] === order[maxLetter] && currentNumber > maxNumber) {
+                    return classValue;
+                }
+                return max;
+            }, "A0.0"); // Initialize with lowest possible class
+            document.getElementById('solar-activity-max').textContent = maxClassValue;
+
+            // Radio Flux 10.7cm
+            document.getElementById('radio-flux').textContent = dataRadioFlux && dataRadioFlux.Flux ? parseFloat(dataRadioFlux.Flux).toFixed(2) : 'N/A';
+
+            document.querySelectorAll('.value.loading').forEach(element => {
+                element.classList.remove('loading');
+            });
+            document.querySelectorAll('.value-container .error').forEach(element => {
+                element.classList.remove('error'); // Remove error state if data is fetched
+            });
+
+        } catch (error) {
+            console.error('Fehler beim Abrufen der aktuellen Daten:', error);
+            document.querySelectorAll('.value').forEach(element => {
+                element.textContent = 'Fehler!';
+                element.classList.remove('loading');
+                element.classList.add('error');
+            });
+        }
+    }
+
+    // --- Geolocation and Aurora Probability ---
+    async function getLocationAndCalculateAuroraProbability() {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(async position => {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+
+                document.getElementById('latitude').textContent = formatLatitude(latitude);
+                document.getElementById('longitude').textContent = formatLongitude(longitude);
+
+                updateAuroraProbability(latitude);
+                document.getElementById('latitude').classList.remove('loading');
+                document.getElementById('longitude').classList.remove('loading');
+                document.getElementById('aurora-probability').classList.remove('loading');
+            }, error => {
+                console.error("Fehler bei der Standortbestimmung:", error);
+                document.getElementById('latitude').textContent = 'Nicht verfügbar';
+                document.getElementById('longitude').textContent = 'Nicht verfügbar';
+                document.getElementById('aurora-probability').textContent = 'Nicht verfügbar';
+                document.getElementById('latitude').classList.remove('loading');
+                document.getElementById('longitude').classList.remove('loading');
+                document.getElementById('aurora-probability').classList.remove('loading');
+                document.getElementById('latitude').classList.add('error');
+                document.getElementById('longitude').classList.add('error');
+                document.getElementById('aurora-probability').classList.add('error');
+            });
+        } else {
+            console.error("Geolocation wird von diesem Browser nicht unterstützt.");
+            document.getElementById('latitude').textContent = 'Nicht unterstützt';
+            document.getElementById('longitude').textContent = 'Nicht unterstützt';
+            document.getElementById('aurora-probability').textContent = 'Nicht verfügbar';
+            document.getElementById('latitude').classList.remove('loading');
+            document.getElementById('longitude').classList.remove('loading');
+            document.getElementById('aurora-probability').classList.remove('loading');
+            document.getElementById('latitude').classList.add('error');
+            document.getElementById('longitude').classList.add('error');
+            document.getElementById('aurora-probability').classList.add('error');
+        }
+    }
+
+    function formatLatitude(latitude) {
+        let locationType = "";
+        if (latitude > 70) {
+            locationType = " (Hoher Breitengrad)";
+        } else if (latitude > 65) {
+            locationType = " (Mittelhoher Breitengrad)";
+        } else if (latitude > 60) {
+            locationType = " (Mittlerer Breitengrad)";
+        } else {
+            locationType = " (Niedriger Breitengrad)";
+        }
+        return `${latitude.toFixed(2)}° N${locationType}`;
+    }
+
+    function formatLongitude(longitude) {
+        return `${longitude.toFixed(2)}° E`;
+    }
+
+    function updateAuroraProbability(latitude) {
+        if (latitude === undefined || currentKpIndex === undefined || currentBz === undefined || currentSolarWindSpeed === undefined || currentSolarWindDensity === undefined || currentBt === undefined) {
+            return;
+        }
+
+        let probability = 0;
+
+        // Influence of Latitude
+        if (latitude > 70) {
+            probability += 20;
+        } else if (latitude > 65) {
+            probability += 10;
+        } else if (latitude > 60) {
+            probability += 5;
+        } else {
+            probability -= 15;
+        }
+        probability = Math.max(0, probability);
+
+        // Influence of Kp-Index
+        if (currentKpIndex >= 5) {
+            probability += (currentKpIndex - 4) * 10;
+        } else if (currentKpIndex >= 3) {
+            probability += (currentKpIndex - 2) * 3;
+        }
+
+        // Influence of Bz
+        if (currentBz < -15) {
+            probability += 20;
+        } else if (currentBz < -10) {
+            probability += 10;
+        } else if (currentBz < -5) {
+            probability += 5;
+        }
+
+        // Influence of Solar Wind Speed
+        if (currentSolarWindSpeed > 700) {
+            probability += 10;
+        } else if (currentSolarWindSpeed > 600) {
+            probability += 5;
+        } else if (currentSolarWindSpeed > 500) {
+            probability += 2;
+        }
+
+        // Influence of Density and Bt
+        if (currentSolarWindDensity > 30) {
+            probability += 3;
+        } else if (currentSolarWindDensity > 20) {
+            probability += 1;
+        }
+        if (currentBt > 20) {
+            probability += 2;
+        } else if (currentBt > 15) {
+            probability += 1;
+        }
+
+        probability = Math.max(0, Math.min(100, probability));
+        document.getElementById('aurora-probability').textContent = probability.toFixed(0) + '%';
+    }
+
+    // --- Dynamic Image Updates ---
+    function updateDRegionImage() {
+        const jsonUrl = 'https://services.swpc.noaa.gov/products/animations/d-rap_global.json';
+        const baseUrl = 'https://services.swpc.noaa.gov';
+
+        fetch(jsonUrl)
+            .then(response => response.json())
+            .then(data => {
+                let imageUrl;
+                if (Array.isArray(data) && data.length > 0 && data[data.length - 1].url) {
+                    imageUrl = baseUrl + data[data.length - 1].url;
+                } else {
+                    console.error("JSON-Struktur für D-Region Bild nicht erkannt.");
+                    document.getElementById('dynamicImage2').src = 'https://via.placeholder.com/300x180?text=Bild+Fehler';
+                    document.getElementById('dynamicImage2').alt = 'Fehler beim Laden des Bildes';
+                    return;
+                }
+                document.getElementById('dynamicImage2').src = imageUrl;
+            })
+            .catch(error => {
+                console.error("Fehler beim Abrufen der JSON-Datei für D-Region Bild:", error);
+                document.getElementById('dynamicImage2').src = 'https://via.placeholder.com/300x180?text=Ladefehler';
+                document.getElementById('dynamicImage2').alt = 'Fehler beim Laden des Bildes';
+            });
+    }
+
+    // --- Kp-Info Toggle ---
+    function toggleKpInfo(event) {
+        event.stopPropagation(); // Verhindert, dass das Chart-Modal geöffnet wird
+        const kpInfoDiv = document.getElementById('kp-info');
+        if (kpInfoDiv.style.display === 'none' || kpInfoDiv.style.display === '') {
+            kpInfoDiv.style.display = 'block';
+        } else {
+            kpInfoDiv.style.display = 'none';
+        }
+    }
+
+    // --- Image Popup for Large Views ---
+    function showImagePopup(mediaUrl) {
+        const popup = document.getElementById('image-popup');
+        const popupImage = document.getElementById('popup-image');
+        const popupIframe = document.getElementById('popup-iframe');
+
+        popupImage.style.display = 'none';
+        popupIframe.style.display = 'none';
+
+        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif'];
+        const isImage = imageExtensions.some(ext => mediaUrl.toLowerCase().endsWith(ext));
+
+        if (isImage) {
+            popupImage.src = mediaUrl;
+            popupImage.alt = "Großansicht";
+            popupImage.style.display = 'block';
+        } else {
+            // Fallback for unsupported formats or potential videos
+            popupIframe.src = mediaUrl; // Try to load as iframe, though might not work for all
+            popupIframe.style.display = 'block';
+        }
+        popup.style.display = 'flex';
+    }
+
+    function hideImagePopup() {
+        const popup = document.getElementById('image-popup');
+        popup.style.display = 'none';
+        document.getElementById('popup-image').src = '';
+        document.getElementById('popup-iframe').src = '';
+    }
+
+    // --- X-Flare Alert ---
+    async function checkSolarActivityForXFlare() {
+        try {
+            const response = await fetch("https://services.swpc.noaa.gov/json/goes/primary/xray-flares-7-day.json");
+            const data = await response.json();
+            const now = new Date();
+            const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+            const last24hData = data.filter(item => item.time_tag && new Date(item.time_tag) > dayAgo);
+
+            const xFlareDetected = last24hData.some(item => item.max_class && item.max_class.startsWith('X'));
+
+            if (xFlareDetected) {
+                alert("Achtung! Eine starke X-Sonneneruption wurde registriert!");
+            }
+        } catch (error) {
+            console.error("Fehler beim Abrufen der X-Flare-Daten:", error);
+        }
+        setTimeout(checkSolarActivityForXFlare, 5 * 60 * 1000); // Check again after 5 minutes
+    }
+
+    // --- Modal Chart Functionality ---
     const chartModal = document.getElementById('chartModal');
-    const closeButton = document.querySelector('.close-button');
+    const closeButton = chartModal.querySelector('.close-button');
     const modalChartCanvas = document.getElementById('modalChart');
     const modalChartTitle = document.getElementById('modalChartTitle');
     const timeSelectors = document.querySelectorAll('.time-selector button');
 
-    // Öffnet das Modal und rendert den Graphen
-    document.querySelectorAll('.card').forEach(card => {
-        card.addEventListener('click', function() {
-            currentChartType = this.dataset.chart;
-            const title = this.querySelector('h2').textContent;
+    document.querySelectorAll('.card[data-chart-type]').forEach(card => {
+        card.addEventListener('click', function(event) { // Added event parameter
+            // Prevent opening modal if clicking the Kp info button
+            if (event.target.classList.contains('kp-info-button')) {
+                return;
+            }
+            currentModalChartType = this.dataset.chartType;
+            const title = this.querySelector('h2').textContent; // Note: h2 for this design
             modalChartTitle.textContent = title;
-            chartModal.style.display = 'flex'; // Zeigt das Modal an
+            chartModal.style.display = 'flex';
 
-            // Setzt den Standard-Zeitraum auf 24h und rendert den Graphen
             timeSelectors.forEach(btn => btn.classList.remove('active'));
             document.querySelector('.time-selector button[data-period="24h"]').classList.add('active');
             renderModalChart('24h');
         });
     });
 
-    // Schließt das Modal
     closeButton.addEventListener('click', function() {
         chartModal.style.display = 'none';
         if (modalChartInstance) {
-            modalChartInstance.destroy(); // Zerstört die alte Chart-Instanz
+            modalChartInstance.destroy();
             modalChartInstance = null;
         }
     });
 
-    // Schließt das Modal, wenn außerhalb geklickt wird
     window.addEventListener('click', function(event) {
         if (event.target == chartModal) {
             chartModal.style.display = 'none';
@@ -364,50 +986,82 @@
         }
     });
 
-    // Rendert den Graphen im Modal basierend auf dem ausgewählten Zeitraum
+    timeSelectors.forEach(button => {
+        button.addEventListener('click', function() {
+            timeSelectors.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+            renderModalChart(this.dataset.period);
+        });
+    });
+
     function renderModalChart(period) {
-        let labels, data, chartLabel, color;
+        let labels, data, chartLabel, color, valueSuffix = '';
 
-        let dataSliceLength;
-        if (period === '24h') dataSliceLength = 24;
-        else if (period === '48h') dataSliceLength = 48;
-        else if (period === '72h') dataSliceLength = 72;
-        else dataSliceLength = 24; // Standard
+        let dataPointsCount;
+        if (period === '24h') dataPointsCount = 24 * 60;
+        else if (period === '48h') dataPointsCount = 48 * 60;
+        else if (period === '72h') dataPointsCount = 72 * 60;
+        else dataPointsCount = 24 * 60;
 
-        labels = allTimeLabels.slice(-dataSliceLength);
+        labels = historicalTimeLabels.slice(-dataPointsCount);
 
-        switch(currentChartType) {
+        switch(currentModalChartType) {
             case 'IMF':
-                data = allDataIMF.slice(-dataSliceLength);
+                data = historicalDataIMF.slice(-dataPointsCount);
                 chartLabel = 'IMF total field';
-                color = 'orange';
+                color = '#2196f3';
+                valueSuffix = ' nT';
                 break;
             case 'IMFz':
-                data = allDataIMFz.slice(-dataSliceLength);
-                chartLabel = 'IMF Z vector';
-                color = 'yellow';
+                data = historicalDataIMFz.slice(-dataPointsCount);
+                chartLabel = 'Bz-Wert';
+                color = '#ff9800';
+                valueSuffix = ' nT';
                 break;
             case 'Speed':
-                data = allDataSpeed.slice(-dataSliceLength);
-                chartLabel = 'Proton speed';
-                color = 'red';
+                data = historicalDataSpeed.slice(-dataPointsCount);
+                chartLabel = 'Solarwindgeschwindigkeit';
+                color = '#4caf50';
+                valueSuffix = ' km/s';
                 break;
             case 'Density':
-                data = allDataDensity.slice(-dataSliceLength);
-                chartLabel = 'Proton density';
-                color = 'lime';
+                data = historicalDataDensity.slice(-dataPointsCount);
+                chartLabel = 'Solarwinddichte';
+                color = '#e57373';
+                valueSuffix = ' p/cm³';
                 break;
-            case 'Temp':
-                data = allDataTemp.slice(-dataSliceLength);
-                chartLabel = 'Proton temperature';
-                color = 'purple';
+            case 'Kp':
+                data = historicalDataKp.slice(-dataPointsCount);
+                chartLabel = 'Kp-Index';
+                color = '#00bcd4';
+                break;
+            case 'DST':
+                // DST data is hourly
+                dataPointsCount = Math.floor(dataPointsCount / 60); // Convert minutes to hours for DST
+                labels = historicalTimeLabels.filter((_, i) => i % 60 === 0).slice(-dataPointsCount);
+                data = historicalDataDst.slice(-dataPointsCount);
+                chartLabel = 'DST-Index';
+                color = '#f44336';
+                valueSuffix = ' nT';
+                break;
+            case 'Xray':
+                data = historicalDataXray.slice(-dataPointsCount);
+                chartLabel = 'X-Ray-Flux';
+                color = '#ffeb3b';
+                break;
+            case 'RadioFlux':
+                data = historicalDataRadioFlux; // Radio Flux is typically daily, so charting a range might not show much
+                labels = ['Aktuell']; // Or just show the latest value if only one is available
+                chartLabel = 'Radio Flux 10.7cm';
+                color = '#9c27b0';
+                valueSuffix = ' sfu';
                 break;
             default:
                 return;
         }
 
         if (modalChartInstance) {
-            modalChartInstance.destroy(); // Zerstört die alte Instanz, bevor eine neue erstellt wird
+            modalChartInstance.destroy();
         }
 
         modalChartInstance = new Chart(modalChartCanvas, {
@@ -418,38 +1072,64 @@
                     label: chartLabel,
                     data: data,
                     borderColor: color,
-                    backgroundColor: 'rgba(0,0,0,0)', // Transparenter Hintergrund
+                    backgroundColor: 'rgba(0,0,0,0)',
                     tension: 0.3,
                     pointRadius: 0
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false, // Wichtig für die Höhenkontrolle im Modal
-                plugins: { legend: { display: true, labels: { color: '#fff' } } },
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        labels: {
+                            color: '#e0e0e0'
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                let label = context.dataset.label || '';
+                                if (label) {
+                                    label += ': ';
+                                }
+                                if (context.parsed.y !== null) {
+                                    label += context.parsed.y.toFixed(2) + valueSuffix;
+                                }
+                                return label;
+                            }
+                        }
+                    }
+                },
                 scales: {
                     x: {
-                        ticks: { color: '#888', maxTicksLimit: 12 }
+                        ticks: { color: '#b0b0b0', maxTicksLimit: 12 },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
                     },
                     y: {
-                        ticks: { color: '#888' }
+                        ticks: { color: '#b0b0b0' },
+                        grid: { color: 'rgba(255,255,255,0.1)' }
                     }
                 }
             }
         });
     }
 
-    // Event Listener für die Zeitauswahl-Buttons
-    timeSelectors.forEach(button => {
-        button.addEventListener('click', function() {
-            // Entfernt 'active' von allen Buttons und fügt es dem geklickten hinzu
-            timeSelectors.forEach(btn => btn.classList.remove('active'));
-            this.classList.add('active');
-            renderModalChart(this.dataset.period);
-        });
+    // --- Initial calls and intervals ---
+    window.addEventListener('load', () => {
+        // showChangesPopup(); // This line is removed to prevent the popup
+        getLocationAndCalculateAuroraProbability();
+        fetchSpaceWeatherData(); // Fetches current values and updates probability
+        fetchHistoricalSpaceWeatherData(); // Fetches historical data for charts
+        updateDRegionImage(); // Updates dynamic image
+        checkSolarActivityForXFlare(); // Starts checking for X-flares
     });
 
-    fetchNOAAData();
-  </script>
+    // Update intervals
+    setInterval(fetchSpaceWeatherData, 60000); // Every minute for current data & probability
+    setInterval(fetchHistoricalSpaceWeatherData, 5 * 60 * 1000); // Every 5 minutes for historical data
+    setInterval(updateDRegionImage, 20000); // Every 20 seconds for D-Region image
+</script>
 </body>
 </html>
